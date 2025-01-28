@@ -1,95 +1,89 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client"
+import { useState } from 'react';
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.js</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [results, setResults] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError(null);
+    setResults(null);
+    setLoading(true);
+
+    try {
+      // Build query string
+      const fn = firstName.trim();
+      const ln = lastName.trim();
+      if (!fn || !ln) {
+        throw new Error('Please enter both first and last name.');
+      }
+
+      const query = `firstName=${encodeURIComponent(fn)}&lastName=${encodeURIComponent(ln)}`;
+
+      // Call our API route
+      const response = await fetch(`/api/scrape?${query}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Something went wrong.');
+      }
+      setResults(data.results);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '1rem' }}>
+      <h1>Teacher Credential Lookup (First &amp; Last Name Only)</h1>
+      <form onSubmit={handleSubmit} style={{ marginBottom: '1rem' }}>
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label htmlFor="firstName">First Name: </label>
+          <input
+            id="firstName"
+            type="text"
+            placeholder="e.g. Jane"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
+          />
         </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label htmlFor="lastName">Last Name: </label>
+          <input
+            id="lastName"
+            type="text"
+            placeholder="e.g. Doe"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
           />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </div>
+
+        <button type="submit" style={{ padding: '0.5rem 1rem' }}>
+          Search
+        </button>
+      </form>
+
+      {loading && <p>Searching...</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {results && (
+        <div style={{ whiteSpace: 'pre-wrap' }}>
+          <h2>Search Results:</h2>
+          <p>
+            {typeof results === 'string'
+              ? results
+              : JSON.stringify(results, null, 2)}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
