@@ -1,70 +1,92 @@
 import puppeteer from 'puppeteer';
 
 /**
- * Example usage:
- * GET /api/scrape?firstName=Jane&lastName=Doe
+ * API endpoint usage:
+ *   GET /api/scrape?name=John+Smith
+ *   GET /api/scrape?credential=123456
  *
- * Returns JSON data from the CTC page. 
+ * Returns JSON data of whatever is scraped.
  */
 export default async function handler(req, res) {
-    const { firstName, lastName } = req.query;
+    const { name, credential } = req.query;
 
-    // Ensure we have both
-    if (!firstName || !lastName) {
+    // Require at least one param
+    if (!name && !credential) {
         return res
             .status(400)
-            .json({ error: 'Please provide both "firstName" and "lastName".' });
+            .json({ error: 'Please provide either a "name" or "credential" query param.' });
     }
 
     let browser;
     try {
         // 1. Launch Puppeteer
         browser = await puppeteer.launch({
-            headless: true, // set to false if you want to watch it in action
+            headless: true, // You can set to false for debugging
         });
         const page = await browser.newPage();
 
-        // 2. Navigate to the CTC page
+        // 2. Go to the target site
         await page.goto(
             'https://educator.ctc.ca.gov/esales_enu/start.swe?SWECmd=GotoView&SWEView=CTC+Search+View+Web',
             { waitUntil: 'networkidle2' }
         );
 
         // 3. Fill out the search form
-        // -- IMPORTANT --
-        // The actual CTC page might have separate fields for "First Name" and "Last Name"
-        // or it might have a single "Name" field. 
-        // You MUST inspect the site and update these selectors to the correct ones!
+        //    NOTE: The site likely has multiple fields / radio buttons or more complicated steps.
+        //    The code below is just an example. Inspect the site to find the correct selectors.
 
-        // Example: If the page has a "First Name" input field with name="ctl00$MainContent$txtFirstName"
-        await page.type('input[name="ctl00$MainContent$txtFirstName"]', firstName);
+        // EXAMPLE SELECTORS: (These are placeholders!)
+        // If name => maybe "Last Name" or a single name field:
+        if (name) {
+            // For demonstration, let's assume there's a single text field with name or id "txtName"
+            // Adjust to the actual input.
+            await page.type('input[name="ctl00$MainContent$txtName"]', name);
+        }
 
-        // Example: If the page has a "Last Name" input field with name="ctl00$MainContent$txtLastName"
-        await page.type('input[name="ctl00$MainContent$txtLastName"]', lastName);
+        // If credential => maybe "Document Number"
+        if (credential) {
+            // For demonstration, let's assume there's a text field for "Document Number"
+            // Inspect the site for the real name, id, or etc.
+            await page.type('input[name="ctl00$MainContent$txtDocumentNumber"]', credential);
+        }
 
-        // Possibly there's a radio button or other elements to click before searching
-        // e.g.: await page.click('input[id="rdoSearchByName"]');
+        // Possibly you need to check or select a radio button for "Search by Document Number"
+        // e.g. await page.click('input[id="rdoDocumentNumber"]');
 
-        // 4. Click the Search button
-        // Inspect the site to find the real ID or selector for the "Search" button.
+        // 4. Click the "Search" button
+        //    Again, adjust the selector to the real one on the site:
         await Promise.all([
-            page.click('input[name="ctl00$MainContent$btnSearch"]'),
+            page.click('input[id="ctl00$MainContent$btnSearch"]'),
             page.waitForNavigation({ waitUntil: 'networkidle2' }),
         ]);
 
-        // 5. Scrape the results page
-        // For debugging, let's grab the entire page text:
+        // 5. Parse results from the results page
+        //    This is highly dependent on how the page displays data.
+        //    Typically, you'd query a table or text elements.
+
         const data = await page.evaluate(() => {
+            // For debugging, let's just return all text on the page:
             return document.body.innerText;
+
+            // If there's a table, you might do something like:
+            /*
+            const rows = Array.from(document.querySelectorAll('#searchResultsTable tr'));
+            return rows.map(row => {
+              const cells = row.querySelectorAll('td');
+              return {
+                name: cells[0]?.innerText.trim(),
+                credentialNumber: cells[1]?.innerText.trim(),
+                status: cells[2]?.innerText.trim(),
+              };
+            });
+            */
         });
 
-        // Send the data back
+        // Return JSON
         return res.status(200).json({ results: data });
     } catch (error) {
         console.error('Scraping error:', error);
-        return res
-            .status(500)
-            .json({ error: 'Something went wrong scraping.' });
+        return res.status(500).json({ error: 'Something went wrong scraping.' });
     } finally {
         if (browser) {
             await browser.close();

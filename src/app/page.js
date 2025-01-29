@@ -2,35 +2,44 @@
 import { useState } from 'react';
 
 export default function Home() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [name, setName] = useState('');
+  const [credential, setCredential] = useState('');
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event) => {
-    event.preventDefault();
+    event.preventDefault(); // prevent form from reloading the page
     setError(null);
     setResults(null);
     setLoading(true);
 
     try {
       // Build query string
-      const fn = firstName.trim();
-      const ln = lastName.trim();
-      if (!fn || !ln) {
-        throw new Error('Please enter both first and last name.');
+      let query = '';
+      if (name.trim()) {
+        query += `name=${encodeURIComponent(name.trim())}`;
+      }
+      if (credential.trim()) {
+        // If name is already in the query, add '&'
+        if (query) query += '&';
+        query += `credential=${encodeURIComponent(credential.trim())}`;
       }
 
-      const query = `firstName=${encodeURIComponent(fn)}&lastName=${encodeURIComponent(ln)}`;
+      if (!query) {
+        setLoading(false);
+        setError('Please enter a name or credential number.');
+        return;
+      }
 
-      // Call our API route
+      // Send request to our API route
       const response = await fetch(`/api/scrape?${query}`);
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Something went wrong.');
       }
+
       setResults(data.results);
     } catch (err) {
       setError(err.message);
@@ -40,29 +49,29 @@ export default function Home() {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '1rem' }}>
-      <h1>Teacher Credential Lookup (First &amp; Last Name Only)</h1>
+    <div style={{ maxWidth: 600, margin: '0 auto', padding: '1rem' }}>
+      <h1>Teacher Credential Lookup</h1>
       <form onSubmit={handleSubmit} style={{ marginBottom: '1rem' }}>
         <div style={{ marginBottom: '0.5rem' }}>
-          <label htmlFor="firstName">First Name: </label>
+          <label htmlFor="name">Teacher Name (Optional): </label>
           <input
-            id="firstName"
+            id="name"
             type="text"
-            placeholder="e.g. Jane"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="e.g. Jane Doe"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
           />
         </div>
 
         <div style={{ marginBottom: '0.5rem' }}>
-          <label htmlFor="lastName">Last Name: </label>
+          <label htmlFor="credential">Credential Number (Optional): </label>
           <input
-            id="lastName"
+            id="credential"
             type="text"
-            placeholder="e.g. Doe"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
+            placeholder="e.g. 123456"
+            value={credential}
+            onChange={(e) => setCredential(e.target.value)}
             style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
           />
         </div>
